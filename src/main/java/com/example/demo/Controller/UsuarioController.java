@@ -2,8 +2,10 @@ package com.example.demo.Controller;
 
 import com.example.demo.Models.Usuario;
 import com.example.demo.Repository.UsuarioRepository;
+import lombok.AllArgsConstructor;
 import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -11,46 +13,45 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
 
+@AllArgsConstructor
 @RestController
+@RequestMapping("/api")
 public class UsuarioController {
 
     UsuarioRepository repository;
 
-    public UsuarioController(UsuarioRepository r) {
-        this.repository = r;
-    }
-
     //Si la DB esta vacía, ir a /api/crearUsuarios genera 2 por defecto
-    @GetMapping("/api/crearUsuarios")
-    public void crearUsuarios() {
+    @PostMapping("/crearUsuarios")
+    public ResponseEntity<Void> crearUsuarios() {
         if(repository.count() == 0) {
-            Usuario usuario1 = new Usuario("rodrigo@mail.com", "rodrigo1");
-            Usuario usuario2 = new Usuario("erika@mail.com", "erika1");
+            Usuario usuario1 = new Usuario();
+            usuario1.setMail("erika@mail.com");
+            usuario1.setPass("erika1");
+            Usuario usuario2 = new Usuario();
+            usuario2.setMail("rodrigo@mail.com");
+            usuario2.setPass("rodrigo1");
             repository.save(usuario1);
             repository.save(usuario2);
         }
-
+        return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/api/usuarios")
+    @GetMapping("/usuarios")
     public List<Usuario> obtenerUsuarios() {
         return repository.findAll();
     }
 
-    @GetMapping("/api/usuario/{id}")
+    @GetMapping("/usuario/{id}")
     public ResponseEntity<Usuario> obtenerUsuario(@PathVariable Long id) {
         Optional<Usuario> opt = repository.findById(id);
-        if (opt.isEmpty()) {
-            return ResponseEntity.badRequest().build();
-        } else {
-            return ResponseEntity.ok(opt.get());
-        }
+        return opt.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.badRequest().build());
     }
 
     //El crossOrigin es para evitar errores de CORS al probar localmente
     @CrossOrigin
-    @PostMapping("/api/registrarUsuario")
+    @PostMapping("/registrarUsuario")
     public ResponseEntity<String> registrarUsuario(@RequestBody Usuario usuario) {
+        System.out.println("user: " + usuario.toString());
         Usuario usuarioExistente = repository.findByMail(usuario.getMail());
 
         if (usuarioExistente != null) {
@@ -66,7 +67,7 @@ public class UsuarioController {
 
     //El crossOrigin es para evitar errores de CORS al probar localmente
     @CrossOrigin
-    @PostMapping("/api/iniciarSesion")
+    @PostMapping("/iniciarSesion")
     public ResponseEntity<String> iniciarSesion(@RequestBody Usuario usuario) {
         Usuario usuarioExistente = repository.findByMail(usuario.getMail());
 
@@ -75,7 +76,7 @@ public class UsuarioController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error: El usuario no está registrado.");
 
         //Si no coincide el mail con la contraseña
-        if (!usuario.getContrasena().equals(usuarioExistente.getContrasena()))
+        if (!usuario.getPass().equals(usuarioExistente.getPass()))
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error: El mail no coincide con la contraseña.");
 
         return ResponseEntity.ok("Inicio de sesión correcto.");
